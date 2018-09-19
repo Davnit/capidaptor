@@ -46,7 +46,11 @@ message_eids = {
 }
 
 user_flags = {
-    "moderator": bncs.FLAG_OPERATOR
+    "admin": bncs.FLAG_BNETADMIN,
+    "moderator": bncs.FLAG_OPERATOR,
+    "speaker": bncs.FLAG_SPEAKER,
+    "muteglobal": bncs.FLAG_SQUELCHED,
+    "mutewhisper": bncs.FLAG_SQUELCHED
 }
 
 
