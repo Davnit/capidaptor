@@ -11,6 +11,7 @@ class Server(Thread):
         self.port = port
         self.iface = iface
         self.debug = False
+        self.ignore_unsupported_commands = False
 
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.bind((iface, port))
@@ -50,6 +51,7 @@ class Server(Thread):
             x += 1
         self.lock.release()
         return x
+
 
 class Client(object):
     def __init__(self, server, client, address, client_id):

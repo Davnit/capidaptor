@@ -7,6 +7,7 @@ import argparse
 parser = argparse.ArgumentParser(prog='capidaptor')
 parser.add_argument('--interface', help='Specifies the interface and port to listen on')
 parser.add_argument('--debug', help='Enables debugging mode', action='store_true')
+parser.add_argument('--ignore-unsupported', help='Silently drops unsupported commands', action='store_true')
 
 args = parser.parse_args()
 
@@ -21,5 +22,8 @@ else:
 
 if args.debug:
     s.debug = True
+
+if args.ignore_unsupported:
+    s.ignore_unsupported_commands = True
 
 s.start()

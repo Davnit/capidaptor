@@ -18,6 +18,9 @@ products["SEXP"] = products["STAR"]
 products["D2XP"] = products["D2DV"]
 products["W3XP"] = products["WAR3"]
 
+unsupported_commands = ["away", "dnd", "friends", "options", "squelch", "unsquelch", "who", "whoami", "whois",
+                        "ignore", "unignore", "where", "whereis", "clan", "f", "c", "o", "beep", "mail", "nobeep",
+                        "stats", "time", "users", "help", "?"]
 
 SID_NULL = 0x00
 SID_ENTERCHAT = 0x0A
@@ -291,12 +294,19 @@ class ThinBncsClient(Thread):
 
                     self.parent.capi.bankickunban(arg[0], cmd)
             else:
-                if cmd == "unignore" and len(parts) == 2:
-                    name = parts[1].lower()
-                    if name in [self.username.lower(), "*" + self.username.lower()]:
-                        return
+                if cmd in unsupported_commands:
+                    if not self.parent.server.ignore_unsupported_commands:
+                        if cmd in ["unsquelch", "unignore"] or len(parts) == 2:
+                            name = parts[1].lower()
+                            if name in [self.username.lower(), "*" + self.username.lower()]:
+                                return
 
-                self.send_error("That is not a valid command.")
+                        self.send_error("That command is not supported by the chat API.")
+
+                    self.parent.debug("Unsupported command: %s" % repr(parts))
+                else:
+                    self.send_error("That is not a valid command.")
+                    self.parent.debug("Invalid command: %s" % repr(parts))
         else:
             self.parent.capi.send_chat(text)
 
