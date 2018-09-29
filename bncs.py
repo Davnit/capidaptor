@@ -10,7 +10,7 @@ protocols = [
 ]
 
 products = {
-    "WAR3": (2, 0x005E449582B8D101, "ver-IX86-6.mpq", "C=490570630 B=252301178 A=4087433830 4 A=A^S B=B-C C=C-A A=A+B")
+    "WAR3": (0x005E449582B8D101, "ver-IX86-6.mpq", "C=490570630 B=252301178 A=4087433830 4 A=A^S B=B-C C=C-A A=A+B")
 }
 products["W3XP"] = products["WAR3"]
 
@@ -20,6 +20,7 @@ SID_ENTERCHAT = 0x0A
 SID_CHATCOMMAND = 0x0E
 SID_CHATEVENT = 0x0F
 SID_PING = 0x25
+SID_LOGONRESPONSE2 = 0x3A
 SID_AUTH_INFO = 0x50
 SID_AUTH_CHECK = 0x51
 SID_AUTH_ACCOUNTLOGON = 0x53
@@ -58,12 +59,15 @@ class ThinBncsClient(Thread):
         self.logged_on = False
         self.username = None
 
+        self.logon_type = 0
+
         self._handlers = {
             SID_AUTH_INFO: self._handle_auth_info,
             SID_AUTH_CHECK: self._handle_auth_check,
             SID_AUTH_ACCOUNTLOGON: self._handle_auth_accountlogon,
             SID_ENTERCHAT: self._handle_enterchat,
-            SID_CHATCOMMAND: self._handle_chatcommand
+            SID_CHATCOMMAND: self._handle_chatcommand,
+            SID_LOGONRESPONSE2: self._handle_logon_response2
         }
 
         random.seed()
@@ -155,10 +159,16 @@ class ThinBncsClient(Thread):
         is_str = isinstance(status, str)
 
         pak = buffer.DataBuffer()
-        pak.insert_dword(0x0F if is_str else status)
-        pak.insert_raw(proof or (b'\0' * 20))
-        pak.insert_string(status if is_str else '')
-        self.send(SID_AUTH_ACCOUNTLOGONPROOF, pak)
+        if self.logon_type == 0:
+            pak.insert_dword(0x06 if is_str else status)
+            if is_str:
+                pak.insert_string(status)
+            self.send(SID_LOGONRESPONSE2, pak)
+        elif self.logon_type in [1, 2]:
+            pak.insert_dword(0x0F if is_str else status)
+            pak.insert_raw(proof or (b'\0' * 20))
+            pak.insert_string(status if is_str else '')
+            self.send(SID_AUTH_ACCOUNTLOGONPROOF, pak)
 
         if status == 0x00:
             self.parent.print("BNCS login complete - authenticated to chat API")
@@ -192,12 +202,12 @@ class ThinBncsClient(Thread):
         # Send version check request
         pi = products.get(self.product)
         pak = buffer.DataBuffer()
-        pak.insert_dword(pi[0])                 # Logon type
-        pak.insert_dword(self._server_token)     # Server token
+        pak.insert_dword(self.logon_type)       # Logon type
+        pak.insert_dword(self._server_token)    # Server token
         pak.insert_dword(0)                     # UDP value
-        pak.insert_long(pi[1])                  # CRev archive filetime
-        pak.insert_string(pi[2])                # CRev archive filename
-        pak.insert_string(pi[3])                # CRev formula
+        pak.insert_long(pi[0])                  # CRev archive filetime
+        pak.insert_string(pi[1])                # CRev archive filename
+        pak.insert_string(pi[2])                # CRev formula
 
         if self.product in ["WAR3", "W3XP"]:
             pak.insert_raw(b'\0' * 128)         # W3 server signature
@@ -213,21 +223,24 @@ class ThinBncsClient(Thread):
         pak.insert_string('')
         self.send(SID_AUTH_CHECK, pak)
 
+
+
     def _handle_auth_accountlogon(self, pak):
         if self.logged_on:
             self.disconnect("Attempt to login again")
             return
 
         pak.get_raw(32)     # Client key
+        self.logon_type = 2
 
         # Start the CAPI login process
         self.parent.capi.authenticate(pak.get_string())
 
         # Send login response
         pak = buffer.DataBuffer()
-        pak.insert_dword(0)         # Logon accepted
-        pak.insert_raw(b'\0' * 32)  # Account salt
-        pak.insert_raw(b'\0' * 32)  # Server key
+        pak.insert_dword(0)             # Logon accepted
+        pak.insert_raw(b'\0' * 32)      # Account salt
+        pak.insert_raw(b'\0' * 32)      # Server key
         self.send(SID_AUTH_ACCOUNTLOGON, pak)
 
     def _handle_enterchat(self, pak):
@@ -271,3 +284,14 @@ class ThinBncsClient(Thread):
                 self.send_error("That is not a valid command.")
         else:
             self.parent.capi.send_chat(text)
+
+    def _handle_logon_response2(self, pak):
+        if self.logged_on:
+            self.disconnect("Attempt to login again")
+            return
+
+        pak.get_raw(28)     # Tokens and password hash
+        self.logon_type = 0
+
+        # Start CAPI login process
+        self.parent.capi.authenticate(pak.get_string())
