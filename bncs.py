@@ -270,7 +270,7 @@ class ThinBncsClient(Thread):
             cmd = parts[0].lower()
 
             # BNCS commands
-            if cmd == "join":
+            if cmd in ["channel", "join"]:
                 self.send_error("Channel is restricted")
             elif cmd in ["w", "m", "msg", "whisper"]:
                 if len(parts) == 1:
