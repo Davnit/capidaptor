@@ -4,7 +4,8 @@ Allows legacy BNETv1 binary clients to connect to the new BNET chat API.
 Currently supports CAPI v3.
 
 # Requirements
-capidaptor uses the '`websocket-client`' package from pip.
+- Python 3.5
+- The '`websocket-client`' package from pip.
 
 # Usage
 1. Run main.py. The server will listen by default on all interfaces, port 6112.
