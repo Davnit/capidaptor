@@ -291,6 +291,11 @@ class ThinBncsClient(Thread):
 
                     self.parent.capi.bankickunban(arg[0], cmd)
             else:
+                if cmd == "unignore" and len(parts) == 2:
+                    name = parts[1].lower()
+                    if name in [self.username.lower(), "*" + self.username.lower()]:
+                        return
+
                 self.send_error("That is not a valid command.")
         else:
             self.parent.capi.send_chat(text)
