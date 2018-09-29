@@ -101,6 +101,7 @@ class ThinBncsClient(Thread):
             pak.insert_word(4)
 
         self.socket.sendall(pak.data)
+        self.parent.debug("Sent BNCS packet 0x%02x (len: %i)" % (pid, len(pak)))
 
     def receive(self):
         if not self.connected:
@@ -120,6 +121,7 @@ class ThinBncsClient(Thread):
             if length > 4:
                 pak.data += self.socket.recv(length - 4)
 
+            self.parent.debug("Received BNCS packet 0x%02x (len: %i)" % (pid, length))
             return pid, pak
         else:
             self.disconnect("Failed to receive packet header")
@@ -131,7 +133,7 @@ class ThinBncsClient(Thread):
         if p[0] in protocols:
             self.protocol = p[0]
         else:
-            self.disconnect("Unsupported protocol selection (%02x)" % p[0])
+            self.disconnect("Unsupported protocol selection (0x%02x)" % p[0])
             return
 
         # Receive packets

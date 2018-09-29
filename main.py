@@ -1,13 +1,25 @@
 
 from server import Server
 
-import sys
+import argparse
 
 
-if len(sys.argv) > 1 and ':' in sys.argv[1]:
-    iface = tuple(sys.argv[1].split(':', maxsplit=1))
-    s = Server(iface[1], iface[0])
-else:
+parser = argparse.ArgumentParser(prog='capidaptor')
+parser.add_argument('--interface', help='Specifies the interface and port to listen on')
+parser.add_argument('--debug', help='Enables debugging mode', action='store_true')
+
+args = parser.parse_args()
+
+if args.interface is None:
     s = Server()
+else:
+    if ':' in args.interface:
+        iface = tuple(args.interface.split(':', maxsplit=1))
+        s = Server(iface[1], iface[0])
+    else:
+        s = Server(args.interface)
+
+if args.debug:
+    s.debug = True
 
 s.start()

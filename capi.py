@@ -120,6 +120,7 @@ class CapiClient(Thread):
 
         try:
             self.socket.send(json.dumps(msg), websocket.ABNF.OPCODE_TEXT)
+            self.parent.debug("Sent CAPI command: %s" % command)
         except websocket.WebSocketException as err:
             self.disconnect(str(err))
             return False
@@ -181,6 +182,9 @@ class CapiClient(Thread):
                     status = status and status.get(code)
                     if not status:
                         status = "Unknown (%i-%i)" % (area, code)
+
+                self.parent.debug("Received CAPI command: %s%s" %
+                                  (command, ('' if status is None else (" (status: %s)" % str(status)))))
 
                 # Find the request for this message.
                 request = None

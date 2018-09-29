@@ -10,6 +10,7 @@ class Server(Thread):
     def __init__(self, port=6112, iface=''):
         self.port = port
         self.iface = iface
+        self.debug = False
 
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.bind((iface, port))
@@ -50,7 +51,6 @@ class Server(Thread):
         self.lock.release()
         return x
 
-
 class Client(object):
     def __init__(self, server, client, address, client_id):
         self.server = server
@@ -80,6 +80,10 @@ class Client(object):
 
     def print(self, text):
         print("Client #%i - %s" % (self.id, text))
+
+    def debug(self, text):
+        if self.server.debug:
+            print("DEBUG: %s" % text)
 
     def error(self, message):
         self.bncs.send_error(message)
