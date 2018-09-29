@@ -38,5 +38,6 @@ The program supports a few optional command-line arguments:
 * The server will request an OLS login for all products, including ones that usually use NLS. NLS login requests will be accepted, but the password hash cannot be confirmed since there are no accounts or stored passwords. The password that you send in either case does not matter.
 
 # Tested Bots
-[StealthBot](https://github.com/stealthbot/StealthBot)
-[SphtBot](https://davnit.net/islanti/readme.html)
+[StealthBot](https://github.com/stealthbot/StealthBot): **working**
+
+[SphtBot](https://davnit.net/islanti/readme.html): **working**
