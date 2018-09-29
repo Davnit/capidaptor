@@ -263,6 +263,8 @@ class CapiClient(Thread):
             self.parent.bncs.send_chat(eid, user.name, bncs.PROD_CHAT, get_flag_int(user.flags))
 
         self._users[user.id] = user
+        if len(user.attributes) > 0:
+            self.parent.print("Attributes found for user '%s': %s" % (user.name, ', '.join("%s = %s" % (k,v) for k,v in user.attributes.items())))
 
     def _handle_user_leave_event(self, request, response, status):
         user = self._users.get(response.get("user_id"))
