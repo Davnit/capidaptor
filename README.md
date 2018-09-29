@@ -39,3 +39,4 @@ The program supports a few optional command-line arguments:
 
 # Tested Bots
 [StealthBot](https://github.com/stealthbot/StealthBot)
+[SphtBot](https://davnit.net/islanti/readme.html)
