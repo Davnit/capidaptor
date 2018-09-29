@@ -25,6 +25,7 @@ SID_CHATCOMMAND = 0x0E
 SID_CHATEVENT = 0x0F
 SID_PING = 0x25
 SID_LOGONRESPONSE2 = 0x3A
+SID_QUERYREALMS2 = 0x40
 SID_AUTH_INFO = 0x50
 SID_AUTH_CHECK = 0x51
 SID_AUTH_ACCOUNTLOGON = 0x53
@@ -71,7 +72,8 @@ class ThinBncsClient(Thread):
             SID_AUTH_ACCOUNTLOGON: self._handle_auth_accountlogon,
             SID_ENTERCHAT: self._handle_enterchat,
             SID_CHATCOMMAND: self._handle_chatcommand,
-            SID_LOGONRESPONSE2: self._handle_logon_response2
+            SID_LOGONRESPONSE2: self._handle_logon_response2,
+            SID_QUERYREALMS2: self._handle_query_realms2
         }
 
         random.seed()
@@ -297,3 +299,9 @@ class ThinBncsClient(Thread):
 
         # Start CAPI login process
         self.parent.capi.authenticate(pak.get_string())
+
+    def _handle_query_realms2(self, pak):
+        pak = buffer.DataBuffer()
+        pak.insert_dword(0)
+        pak.insert_dword(0)
+        self.send(SID_QUERYREALMS2, pak)
