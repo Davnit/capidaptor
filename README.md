@@ -17,6 +17,12 @@ Run setup.py - `python setup.py install` (this will install the single dependenc
 3. Set your bot's username to your API key, and the server to the address of the computer running this program.
 4. Connect your bot.
 
+### Arguments
+The program supports a few optional command-line arguments:
+* `--interface interface[:port]` - changes the network interface that the server listens on. Default is all interfaces.
+* `--ignore-unsupported` - silently ignores normal Battle.net commands that are not supported by the chat API instead of returning an error message.
+* `--debug` - enables debugging mode which shows sent and received packets from both BNCS and CAPI as well as commands.
+
 # Limitations
 ### Functional
 * The chat API is not product-aware, so everyone will appear as being on the CHAT (Telnet Chat) product.
