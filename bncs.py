@@ -24,6 +24,8 @@ SID_ENTERCHAT = 0x0A
 SID_CHATCOMMAND = 0x0E
 SID_CHATEVENT = 0x0F
 SID_PING = 0x25
+SID_GETICONDATA = 0x2D
+SID_GETFILETIME = 0x33
 SID_LOGONRESPONSE2 = 0x3A
 SID_QUERYREALMS2 = 0x40
 SID_AUTH_INFO = 0x50
@@ -73,7 +75,9 @@ class ThinBncsClient(Thread):
             SID_ENTERCHAT: self._handle_enterchat,
             SID_CHATCOMMAND: self._handle_chatcommand,
             SID_LOGONRESPONSE2: self._handle_logon_response2,
-            SID_QUERYREALMS2: self._handle_query_realms2
+            SID_QUERYREALMS2: self._handle_query_realms2,
+            SID_GETFILETIME: self._handle_get_filetime,
+            SID_GETICONDATA: self._handle_get_icon_data
         }
 
         random.seed()
@@ -307,3 +311,23 @@ class ThinBncsClient(Thread):
         pak.insert_dword(0)
         pak.insert_dword(0)
         self.send(SID_QUERYREALMS2, pak)
+
+    def _handle_get_filetime(self, pak):
+        req_id = pak.get_dword()
+        unknown = pak.get_dword()
+        filename = pak.get_string()
+
+        # No files ever exist.
+        pak = buffer.DataBuffer()
+        pak.insert_dword(req_id)
+        pak.insert_dword(unknown)
+        pak.insert_long(0)
+        pak.insert_string(filename)
+        self.send(SID_GETFILETIME, pak)
+
+    def _handle_get_icon_data(self, pak):
+        # Packet has no contents
+        pak = buffer.DataBuffer()
+        pak.insert_long(0)
+        pak.insert_string('icons.bni')
+        self.send(SID_GETICONDATA, pak)
