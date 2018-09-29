@@ -10,8 +10,12 @@ protocols = [
 ]
 
 products = {
-    "WAR3": (0x005E449582B8D101, "ver-IX86-6.mpq", "C=490570630 B=252301178 A=4087433830 4 A=A^S B=B-C C=C-A A=A+B")
+    "STAR": (0x0000000000000000, "ver-IX86-1.mpq", "C=10 A=20 B=30 4 A=A-S B=B+C C=C^A A=A^B"),
+    "D2DV": (0x01D1B882907FAA00, "ver-IX86-4.mpq", "C=68487743 A=4248224505 B=2968823989 4 A=A-S B=B+C C=C^A A=A^B"),
+    "WAR3": (0x01D1B88295445E00, "ver-IX86-6.mpq", "C=490570630 B=252301178 A=4087433830 4 A=A^S B=B-C C=C-A A=A+B")
 }
+products["SEXP"] = products["STAR"]
+products["D2XP"] = products["D2DV"]
 products["W3XP"] = products["WAR3"]
 
 
@@ -222,8 +226,6 @@ class ThinBncsClient(Thread):
         pak.insert_dword(0x00)      # Success
         pak.insert_string('')
         self.send(SID_AUTH_CHECK, pak)
-
-
 
     def _handle_auth_accountlogon(self, pak):
         if self.logged_on:
