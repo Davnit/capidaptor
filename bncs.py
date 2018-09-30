@@ -9,26 +9,28 @@ protocols = [
     0x01    # GAME
 ]
 
-products = {
-    "STAR": (0x0000000000000000, "ver-IX86-1.mpq", "C=10 A=20 B=30 4 A=A-S B=B+C C=C^A A=A^B"),
-    "D2DV": (0x01D1B882907FAA00, "ver-IX86-4.mpq", "C=68487743 A=4248224505 B=2968823989 4 A=A-S B=B+C C=C^A A=A^B"),
-    "WAR3": (0x01D1B88295445E00, "ver-IX86-6.mpq", "C=490570630 B=252301178 A=4087433830 4 A=A^S B=B-C C=C-A A=A+B")
-}
-products["SEXP"] = products["STAR"]
-products["D2XP"] = products["D2DV"]
-products["W3XP"] = products["WAR3"]
+products = ["STAR", "SEXP", "D2DV", "D2XP", "WAR3", "W3XP", "W2BN", "DRTL", "DSHR"]
+
+check_revision_data = (0x0000000000000000, "ver-IX86-1.mpq", "C=10 A=20 B=30 4 A=A-S B=B+C C=C^A A=A^B")
 
 unsupported_commands = ["away", "dnd", "friends", "options", "squelch", "unsquelch", "who", "whoami", "whois",
                         "ignore", "unignore", "where", "whereis", "clan", "f", "c", "o", "beep", "mail", "nobeep",
                         "stats", "time", "users", "help", "?"]
 
 SID_NULL = 0x00
+SID_CLIENTID = 0x05
+SID_STARTVERSIONING = 0x06
+SID_REPORTVERSION = 0x07
 SID_ENTERCHAT = 0x0A
 SID_CHATCOMMAND = 0x0E
 SID_CHATEVENT = 0x0F
+SID_LOGONCHALLENGEEX = 0x1D
 SID_PING = 0x25
+SID_LOGONCHALLENGE = 0x28
+SID_LOGONRESPONSE = 0x29
 SID_GETICONDATA = 0x2D
 SID_GETFILETIME = 0x33
+SID_CDKEY2 = 0x36
 SID_LOGONRESPONSE2 = 0x3A
 SID_QUERYREALMS2 = 0x40
 SID_AUTH_INFO = 0x50
@@ -72,15 +74,30 @@ class ThinBncsClient(Thread):
         self.logon_type = 0
 
         self._handlers = {
+            # Modern version checking
             SID_AUTH_INFO: self._handle_auth_info,
             SID_AUTH_CHECK: self._handle_auth_check,
+
+            # NLS Login
             SID_AUTH_ACCOUNTLOGON: self._handle_auth_accountlogon,
+
+            # OLS Login
+            SID_LOGONRESPONSE2: self._handle_logon_response,
+
+            # Legacy Login
+            SID_STARTVERSIONING: self._handle_start_versioning,
+            SID_REPORTVERSION: self._handle_report_version,
+            SID_LOGONRESPONSE: self._handle_logon_response,
+
+            # Chat
             SID_ENTERCHAT: self._handle_enterchat,
             SID_CHATCOMMAND: self._handle_chatcommand,
-            SID_LOGONRESPONSE2: self._handle_logon_response2,
+
+            # Misc functions
             SID_QUERYREALMS2: self._handle_query_realms2,
             SID_GETFILETIME: self._handle_get_filetime,
-            SID_GETICONDATA: self._handle_get_icon_data
+            SID_GETICONDATA: self._handle_get_icon_data,
+            SID_CDKEY2: self._handle_cd_key2
         }
 
         random.seed()
@@ -150,7 +167,7 @@ class ThinBncsClient(Thread):
                 break
 
             if pid in self._handlers.keys():
-                self._handlers.get(pid)(pak)
+                self._handlers.get(pid)(pid, pak)
 
         self.disconnect("BNCS thread exited")
 
@@ -174,12 +191,19 @@ class ThinBncsClient(Thread):
         is_str = isinstance(status, str)
 
         pak = buffer.DataBuffer()
+        if self.logon_type == -1:
+            # Legacy login
+            # The result for this packet is flipped. 0 = failure, 1 = success
+            pak.insert_dword(0x01 if status == 0x00 else 0x00)
+            self.send(SID_LOGONRESPONSE, pak)
         if self.logon_type == 0:
+            # Old login (OLS)
             pak.insert_dword(0x06 if is_str else status)
             if is_str:
                 pak.insert_string(status)
             self.send(SID_LOGONRESPONSE2, pak)
         elif self.logon_type in [1, 2]:
+            # New login (NLS)
             pak.insert_dword(0x0F if is_str else status)
             pak.insert_raw(proof or (b'\0' * 20))
             pak.insert_string(status if is_str else '')
@@ -198,7 +222,7 @@ class ThinBncsClient(Thread):
         pak.insert_string(account or username)
         self.send(SID_ENTERCHAT, pak)
 
-    def _handle_auth_info(self, pak):
+    def _handle_auth_info(self, pid, pak):
         if self.product:
             self.disconnect("Sent repeat client auth.")
             return
@@ -215,7 +239,7 @@ class ThinBncsClient(Thread):
         self.send(SID_PING, pak)
 
         # Send version check request
-        pi = products.get(self.product)
+        pi = check_revision_data
         pak = buffer.DataBuffer()
         pak.insert_dword(self.logon_type)       # Logon type
         pak.insert_dword(self._server_token)    # Server token
@@ -229,7 +253,7 @@ class ThinBncsClient(Thread):
 
         self.send(SID_AUTH_INFO, pak)
 
-    def _handle_auth_check(self, pak):
+    def _handle_auth_check(self, pid, pak):
         self._client_token = pak.get_dword()
 
         # Send auth check response
@@ -238,7 +262,7 @@ class ThinBncsClient(Thread):
         pak.insert_string('')
         self.send(SID_AUTH_CHECK, pak)
 
-    def _handle_auth_accountlogon(self, pak):
+    def _handle_auth_accountlogon(self, pid, pak):
         if self.logged_on:
             self.disconnect("Attempt to login again")
             return
@@ -256,14 +280,14 @@ class ThinBncsClient(Thread):
         pak.insert_raw(b'\0' * 32)      # Server key
         self.send(SID_AUTH_ACCOUNTLOGON, pak)
 
-    def _handle_enterchat(self, pak):
+    def _handle_enterchat(self, pid, pak):
         if not self.logged_on or not self.parent.capi.connected:
             self.disconnect("Attempt to enter chat before login")
             return
 
         self.parent.capi.send_command("Botapichat.ConnectRequest")
 
-    def _handle_chatcommand(self, pak):
+    def _handle_chatcommand(self, pid, pak):
         text = pak.get_string()
         if text.startswith("/"):
             parts = text[1:].split(' ', maxsplit=1)
@@ -310,24 +334,25 @@ class ThinBncsClient(Thread):
         else:
             self.parent.capi.send_chat(text)
 
-    def _handle_logon_response2(self, pak):
+    def _handle_logon_response(self, pid, pak):
         if self.logged_on:
             self.disconnect("Attempt to login again")
             return
 
-        pak.get_raw(28)     # Tokens and password hash
-        self.logon_type = 0
+        self._client_token = pak.get_dword()
+        pak.get_raw(24)     # Server token and password hash
+        self.logon_type = (0 if pid == SID_LOGONRESPONSE2 else -1)
 
         # Start CAPI login process
         self.parent.capi.authenticate(pak.get_string())
 
-    def _handle_query_realms2(self, pak):
+    def _handle_query_realms2(self, pid, pak):
         pak = buffer.DataBuffer()
         pak.insert_dword(0)
         pak.insert_dword(0)
         self.send(SID_QUERYREALMS2, pak)
 
-    def _handle_get_filetime(self, pak):
+    def _handle_get_filetime(self, pid, pak):
         req_id = pak.get_dword()
         unknown = pak.get_dword()
         filename = pak.get_string()
@@ -340,9 +365,60 @@ class ThinBncsClient(Thread):
         pak.insert_string(filename)
         self.send(SID_GETFILETIME, pak)
 
-    def _handle_get_icon_data(self, pak):
+    def _handle_get_icon_data(self, pid, pak):
         # Packet has no contents
         pak = buffer.DataBuffer()
         pak.insert_long(0)
         pak.insert_string('icons.bni')
         self.send(SID_GETICONDATA, pak)
+
+    def _handle_start_versioning(self, pid, pak):
+        pak.get_dword()
+        self.product = pak.get_dword(True)
+        if self.product not in products:
+            self.disconnect("Unsupported product (%s)" % self.product)
+            return
+
+        # Send SID_CLIENTID
+        pak = buffer.DataBuffer()
+        pak.insert_dword(0)
+        pak.insert_dword(0)
+        pak.insert_dword(0)
+        pak.insert_dword(0)
+        self.send(SID_CLIENTID, pak)
+
+        # Send SID_LOGONCHALLENGEEX2
+        pak = buffer.DataBuffer()
+        pak.insert_dword(0)                     # UDP Value
+        pak.insert_dword(self._server_token)    # Server token
+        self.send(SID_LOGONCHALLENGEEX, pak)
+
+        # Send SID_STARTVERSIONING
+        pi = check_revision_data
+        pak = buffer.DataBuffer()
+        pak.insert_long(pi[0])                  # MPQ filetime
+        pak.insert_string(pi[1])                # MPQ filename
+        pak.insert_string(pi[2])                # Value string
+        self.send(SID_STARTVERSIONING, pak)
+
+    def _handle_report_version(self, pid, pak):
+        pak.get_dword()
+        self.product = pak.get_dword(True)
+        if self.product not in products:
+            self.disconnect("Unsupported product (%s)" % self.product)
+            return
+
+        # Send version response
+        pak = buffer.DataBuffer()
+        pak.insert_dword(0x02)      # Result: success
+        pak.insert_string('')       # Patch path
+        self.send(SID_REPORTVERSION, pak)
+
+    def _handle_cd_key2(self, pid, pak):
+        pak.get_raw(20)     # Key properties and server token
+        self._client_token = pak.get_dword()
+
+        pak = buffer.DataBuffer()
+        pak.insert_dword(0x01)      # Result: OK
+        pak.insert_string('')
+        self.send(SID_CDKEY2, pak)
