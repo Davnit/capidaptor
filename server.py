@@ -10,8 +10,10 @@ class Server(Thread):
     def __init__(self, port=6112, iface=''):
         self.port = port
         self.iface = iface
+
         self.debug = False
         self.ignore_unsupported_commands = False
+        self.do_version_check = False
 
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.bind((iface, port))

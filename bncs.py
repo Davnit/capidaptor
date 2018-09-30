@@ -238,20 +238,26 @@ class ThinBncsClient(Thread):
         pak.insert_dword(random.getrandbits(32))
         self.send(SID_PING, pak)
 
-        # Send version check request
-        pi = check_revision_data
         pak = buffer.DataBuffer()
-        pak.insert_dword(self.logon_type)       # Logon type
-        pak.insert_dword(self._server_token)    # Server token
-        pak.insert_dword(0)                     # UDP value
-        pak.insert_long(pi[0])                  # CRev archive filetime
-        pak.insert_string(pi[1])                # CRev archive filename
-        pak.insert_string(pi[2])                # CRev formula
+        if self.parent.server.do_version_check:
+            # Send version check request
+            pi = check_revision_data
+            pak.insert_dword(self.logon_type)       # Logon type
+            pak.insert_dword(self._server_token)    # Server token
+            pak.insert_dword(0)                     # UDP value
+            pak.insert_long(pi[0])                  # CRev archive filetime
+            pak.insert_string(pi[1])                # CRev archive filename
+            pak.insert_string(pi[2])                # CRev formula
 
-        if self.product in ["WAR3", "W3XP"]:
-            pak.insert_raw(b'\0' * 128)         # W3 server signature
+            if self.product in ["WAR3", "W3XP"]:
+                pak.insert_raw(b'\0' * 128)         # W3 server signature
 
-        self.send(SID_AUTH_INFO, pak)
+            self.send(SID_AUTH_INFO, pak)
+        else:
+            # Skip sending the request and immediately send the result.
+            pak.insert_dword(0x00)      # Success
+            pak.insert_string('')
+            self.send(SID_AUTH_CHECK, pak)
 
     def _handle_auth_check(self, pid, pak):
         self._client_token = pak.get_dword()
@@ -393,13 +399,19 @@ class ThinBncsClient(Thread):
         pak.insert_dword(self._server_token)    # Server token
         self.send(SID_LOGONCHALLENGEEX, pak)
 
-        # Send SID_STARTVERSIONING
-        pi = check_revision_data
         pak = buffer.DataBuffer()
-        pak.insert_long(pi[0])                  # MPQ filetime
-        pak.insert_string(pi[1])                # MPQ filename
-        pak.insert_string(pi[2])                # Value string
-        self.send(SID_STARTVERSIONING, pak)
+        if self.parent.server.do_version_check:
+            # Send SID_STARTVERSIONING
+            pi = check_revision_data
+            pak.insert_long(pi[0])                  # MPQ filetime
+            pak.insert_string(pi[1])                # MPQ filename
+            pak.insert_string(pi[2])                # Value string
+            self.send(SID_STARTVERSIONING, pak)
+        else:
+            # Skip the version check
+            pak.insert_dword(0x02)      # Result: success
+            pak.insert_string('')
+            self.send(SID_REPORTVERSION, pak)
 
     def _handle_report_version(self, pid, pak):
         pak.get_dword()
