@@ -104,6 +104,9 @@ class CapiClient(Thread):
         if isinstance(identifier, int):
             return self._users.get(identifier)
         elif isinstance(identifier, str):
+            if identifier.startswith("*"):
+                identifier = identifier[1:]
+
             for user in self._users.values():
                 if user.name.lower() == identifier.lower():
                     return user
