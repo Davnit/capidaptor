@@ -53,8 +53,9 @@ class DataReader:
     def get_word(self):
         return unpack('<H', self.get_raw(2))[0]
 
-    def get_dword(self):
-        return unpack('<L', self.get_raw(4))[0]
+    def get_dword(self, as_str=False):
+        val = self.get_raw(4)
+        return val.decode('ascii')[::-1] if as_str else unpack('<L', val)[0]
 
     def get_long(self):
         return unpack('<Q', self.get_raw(8))[0]

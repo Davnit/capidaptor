@@ -204,7 +204,7 @@ class ThinBncsClient(Thread):
             return
 
         pak.get_raw(8)      # First 8 bytes not needed
-        self.product = pak.get_raw(4).decode('ascii')[::-1]
+        self.product = pak.get_dword(True)
         if self.product not in products:
             self.disconnect("Unsupported product (%s)" % self.product)
             return
