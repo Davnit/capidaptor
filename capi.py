@@ -99,10 +99,14 @@ class CapiClient(Thread):
         super().__init__()
         self.daemon = True
 
-    def _get_id(self, toon_name):
-        for uid, user in self._users.items():
-            if user.name.lower() == toon_name.lower():
-                return uid
+    def get_user(self, identifier):
+        # Identifier can be user id or toon name
+        if isinstance(identifier, int):
+            return self._users.get(identifier)
+        elif isinstance(identifier, str):
+            for user in self._users.values():
+                if user.name.lower() == identifier.lower():
+                    return user
         return None
 
     def disconnect(self, reason=None):
@@ -136,8 +140,8 @@ class CapiClient(Thread):
             raise ValueError("Invalid message type - must be %s" % ', '.join(send_message_types.keys()))
         else:
             if mtype == "whisper":
-                user = self._get_id(target)
-                if not user:
+                user = self.get_user(target)
+                if user is None:
                     self.parent.error(bncs.ERROR_NOTLOGGEDON)
                 else:
                     payload["user_id"] = user.id
@@ -145,17 +149,16 @@ class CapiClient(Thread):
             self.send_command(send_message_types.get(mtype), payload)
 
     def bankickunban(self, target, action="ban"):
-        user = self._users.get(self._get_id(target))
-
-        action = action.lower()
-        if action not in bku_actions:
-            raise ValueError("Invalid ban/kick/unban action - must be %s" % ', '.join(bku_actions.keys()))
-
-        payload = {"toon_name": target} if action == "unban" else {"user_id": user.id}
-        if action != "unban" and not user:
+        user = self.get_user(target)
+        if action.lower() != "unban" and user is None:
             self.parent.error(bncs.ERROR_NOTLOGGEDON)
         else:
-            self.send_command(bku_actions.get(action), payload)
+            action = bku_actions.get(action.lower())
+            if action is None:
+                raise ValueError("Invalid ban/kick/unban action - must be %s" % ', '.join(bku_actions.keys()))
+
+            payload = {"toon_name": target} if user is None else {"user_id": user.id}
+            self.send_command(action, payload)
 
     def run(self):
         while self.socket.connected:
@@ -236,7 +239,7 @@ class CapiClient(Thread):
         attributes = response.get("attributes")
         flags = response.get("flag")
 
-        user = self._users.get(user_id) or CapiUser(user_id, toon_name, flags, attributes)
+        user = self.get_user(user_id) or CapiUser(user_id, toon_name, flags, attributes)
 
         if not self.channel:
             # We're not in a channel yet, so this should be our own info.
@@ -268,10 +271,11 @@ class CapiClient(Thread):
 
         self._users[user.id] = user
         if len(user.attributes) > 0:
-            self.parent.print("Attributes found for user '%s': %s" % (user.name, ', '.join("%s = %s" % (k,v) for k,v in user.attributes.items())))
+            self.parent.print("Attributes found for user '%s': %s" %
+                              (user.name, ', '.join("%s = %s" % (k, v) for k, v in user.attributes.items())))
 
     def _handle_user_leave_event(self, request, response, status):
-        user = self._users.get(response.get("user_id"))
+        user = self.get_user(response.get("user_id"))
         if user:
             self.parent.bncs.send_chat(bncs.EID_LEAVE, user.name, bncs.PROD_CHAT, get_flag_int(user.flags))
             del self._users[user.id]
@@ -279,12 +283,12 @@ class CapiClient(Thread):
             self.parent.print("Received leave event for unknown user")
 
     def _handle_message_event(self, request, response, status):
-        user = self._users.get(response.get("user_id"))
+        user = self.get_user(response.get("user_id"))
         mtype = response.get("type")
         message = response.get("message")
 
         eid = message_eids.get(mtype.lower())
-        if eid:
+        if eid is not None:
             self.parent.bncs.send_chat(eid, user.name, message, get_flag_int(user.flags))
         else:
             self.parent.print("Unrecognized chat message type (%s: %s)" % (mtype, message))
@@ -293,7 +297,7 @@ class CapiClient(Thread):
         if status:
             self.parent.error("Whisper not sent: %s" % status)
         else:
-            target = self._users.get(request.get("user_id"))
+            target = self.get_user(request.get("user_id"))
             message = request.get("message")
             if target:
                 self.parent.bncs.send_chat(bncs.EID_WHISPERSENT, target.name, message)
