@@ -217,26 +217,26 @@ class CapiClient(Thread):
         self.send_command("Botapiauth.AuthenticateRequest", {"api_key": api_key})
         self.start()
 
-    def _handle_auth_response(self, request, response, status):
-        if status:
-            self.parent.bncs.send_logon_response(str(status))
-            self.disconnect("CAPI authentication failed: %s" % status)
+    def _handle_auth_response(self, request, response, error):
+        if error:
+            self.parent.bncs.send_logon_response(str(error))
+            self.disconnect("CAPI authentication failed: %s" % error)
         else:
             # Login successful
             self.parent.bncs.send_logon_response(0x00)
 
-    def _handle_connect_response(self, request, response, status):
-        if status:
-            self.disconnect("Failed to enter chat: %s" % status)
+    def _handle_connect_response(self, request, response, error):
+        if error:
+            self.disconnect("Failed to enter chat: %s" % error)
 
-    def _handle_connect_event(self, request, response, status):
+    def _handle_connect_event(self, request, response, error):
         self.channel = response.get("channel")
         self.parent.bncs.send_chat(bncs.EID_CHANNEL, self.username, self.channel)
 
-    def _handle_disconnect_event(self, request, response, status):
+    def _handle_disconnect_event(self, request, response, error):
         self.disconnect("Disconnected from chat API")
 
-    def _handle_user_update_event(self, request, response, status):
+    def _handle_user_update_event(self, request, response, error):
         user_id = response.get("user_id")
         toon_name = response.get("toon_name")
         attributes = response.get("attributes")
@@ -277,7 +277,7 @@ class CapiClient(Thread):
             self.parent.print("Attributes found for user '%s': %s" %
                               (user.name, ', '.join("%s = %s" % (k, v) for k, v in user.attributes.items())))
 
-    def _handle_user_leave_event(self, request, response, status):
+    def _handle_user_leave_event(self, request, response, error):
         user = self.get_user(response.get("user_id"))
         if user:
             self.parent.bncs.send_chat(bncs.EID_LEAVE, user.name, bncs.PROD_CHAT, get_flag_int(user.flags))
@@ -285,7 +285,7 @@ class CapiClient(Thread):
         else:
             self.parent.print("Received leave event for unknown user")
 
-    def _handle_message_event(self, request, response, status):
+    def _handle_message_event(self, request, response, error):
         user = self.get_user(response.get("user_id"))
         mtype = response.get("type")
         message = response.get("message")
@@ -296,9 +296,9 @@ class CapiClient(Thread):
         else:
             self.parent.print("Unrecognized chat message type (%s: %s)" % (mtype, message))
 
-    def _handle_send_whisper_response(self, request, response, status):
-        if status:
-            self.parent.error("Whisper not sent: %s" % status)
+    def _handle_send_whisper_response(self, request, response, error):
+        if error:
+            self.parent.error("Whisper not sent: %s" % error)
         else:
             target = self.get_user(request.get("user_id"))
             message = request.get("message")
