@@ -61,12 +61,36 @@ def get_flag_int(flags):
     return value
 
 
+def get_statstring(attributes):
+    # If these attributes haven't been simplified, do it.
+    if isinstance(attributes, list):
+        user = CapiUser(None, None, attributes=attributes)
+        attributes = user.attributes
+
+    string = attributes.get("ProgramId", "CHAT")[::-1]
+    return string
+
+
 class CapiUser(object):
     def __init__(self, user_id, name, flags=None, attributes=None):
         self.id = user_id
         self.name = name
         self.flags = flags or []
-        self.attributes = attributes or {}
+
+        # Normalize attributes into a simple dictionary.
+        self.attributes = {}
+        if isinstance(attributes, list):
+            for item in attributes:
+                if isinstance(item, dict):
+                    key, value = item.get("key"), item.get("value")
+                    self.attributes[key] = value
+                else:
+                    print("Unexpected attribute format (%s): %s" % (type(attributes).__name__, attributes))
+                    break
+        elif isinstance(attributes, dict):
+            self.attributes = attributes
+        elif attributes is not None:
+            print("Unexpected attribute format (%s): %s" % (type(attributes).__name__, attributes))
 
 
 class CapiClient(Thread):
@@ -240,7 +264,7 @@ class CapiClient(Thread):
     def _handle_user_update_event(self, request, response, error):
         user_id = response.get("user_id")
         toon_name = response.get("toon_name")
-        attributes = response.get("attributes")
+        attributes = response.get("attribute")
         flags = response.get("flag")
 
         user = self.get_user(user_id) or CapiUser(user_id, toon_name, flags, attributes)
@@ -248,7 +272,7 @@ class CapiClient(Thread):
         if not self.channel:
             # We're not in a channel yet, so this should be our own info.
             self.username = user.name
-            self.parent.bncs.enter_chat(self.username, account=self.api_key)
+            self.parent.bncs.enter_chat(self.username, get_statstring(user.attributes), self.api_key)
         else:
             if user.id in self._users:
                 # Actually an update
@@ -271,12 +295,11 @@ class CapiClient(Thread):
                 eid = bncs.EID_JOIN if self._received_users else bncs.EID_SHOWUSER
 
             # Relay the event
-            self.parent.bncs.send_chat(eid, user.name, bncs.PROD_CHAT, get_flag_int(user.flags))
+            self.parent.bncs.send_chat(eid, user.name, get_statstring(user.attributes), get_flag_int(user.flags))
 
         self._users[user.id] = user
         if len(user.attributes) > 0:
-            self.parent.print("Attributes found for user '%s': %s" %
-                              (user.name, ', '.join("%s = %s" % (k, v) for k, v in user.attributes.items())))
+            self.parent.print("Attribute(s) found for user '%s': %s" % (user.name, attributes))
 
     def _handle_user_leave_event(self, request, response, error):
         user = self.get_user(response.get("user_id"))

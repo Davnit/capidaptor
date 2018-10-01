@@ -50,8 +50,6 @@ EID_INFO = 0x12
 EID_ERROR = 0x13
 EID_EMOTE = 0x17
 
-PROD_CHAT = "TAHC"
-
 FLAG_OPERATOR = 0x02
 FLAG_SPEAKER = 0x04
 FLAG_BNETADMIN = 0x08
@@ -213,12 +211,12 @@ class ThinBncsClient(Thread):
             self.parent.print("BNCS login complete - authenticated to chat API")
             self.logged_on = True
 
-    def enter_chat(self, username, stats=None, account=None):
+    def enter_chat(self, username, stats, account=None):
         self.username = username
 
         pak = buffer.DataBuffer()
         pak.insert_string(username)
-        pak.insert_string(stats or PROD_CHAT)
+        pak.insert_string(stats)
         pak.insert_string(account or username)
         self.send(SID_ENTERCHAT, pak)
 
