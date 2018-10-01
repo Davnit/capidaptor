@@ -272,7 +272,7 @@ class CapiClient(Thread):
         if not self.channel:
             # We're not in a channel yet, so this should be our own info.
             self.username = user.name
-            self.parent.bncs.enter_chat(self.username, get_statstring(user.attributes), self.api_key)
+            self.parent.bncs.enter_chat(self.username, get_statstring(user.attributes))
         else:
             if user.id in self._users:
                 # Actually an update

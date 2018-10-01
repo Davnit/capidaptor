@@ -213,11 +213,15 @@ class ThinBncsClient(Thread):
 
     def enter_chat(self, username, stats, account=None):
         self.username = username
+        if account is None:
+            account = username
+            if username.startswith("[B]"):
+                account = username[3:]
 
         pak = buffer.DataBuffer()
         pak.insert_string(username)
         pak.insert_string(stats)
-        pak.insert_string(account or username)
+        pak.insert_string(account)
         self.send(SID_ENTERCHAT, pak)
 
     def _handle_auth_info(self, pid, pak):
