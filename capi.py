@@ -281,7 +281,7 @@ class CapiClient(Thread):
     def _handle_user_leave_event(self, request, response, error):
         user = self.get_user(response.get("user_id"))
         if user:
-            self.parent.bncs.send_chat(bncs.EID_LEAVE, user.name, bncs.PROD_CHAT, get_flag_int(user.flags))
+            self.parent.bncs.send_chat(bncs.EID_LEAVE, user.name, '', get_flag_int(user.flags))
             del self._users[user.id]
         else:
             self.parent.print("Received leave event for unknown user")
