@@ -11,6 +11,7 @@ Currently supports CAPI v3.
 ### Installation
 1. Install Python v3.5 or newer: https://www.python.org/
 2. Run setup.py - `python setup.py install` (this will install the single dependency)
+3. If running this on a Linux-like environment, it is recommended you add the command-line argument `--user` to the above.
 
 ### Running
 1. Run main.py - `python main.py`. The server will listen by default on all interfaces, port 6112.
