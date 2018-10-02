@@ -137,7 +137,7 @@ class CapiClient(Thread):
         return None
 
     def disconnect(self, reason=None):
-        if self.connected:
+        if self.socket.connected:
             self.send_command("Botapichat.DisconnectRequest")
         self.parent.close(reason)
 
