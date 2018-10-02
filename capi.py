@@ -137,7 +137,8 @@ class CapiClient(Thread):
         return None
 
     def disconnect(self, reason=None):
-        self.send_command("Botapichat.DisconnectRequest")
+        if self.connected:
+            self.send_command("Botapichat.DisconnectRequest")
         self.parent.close(reason)
 
     def send_command(self, command, payload=None):
@@ -189,9 +190,14 @@ class CapiClient(Thread):
 
     def run(self):
         while self.socket.connected:
-            msg = self.socket.recv()
-            if len(msg) == 0:
-                break
+            try:
+                msg = self.socket.recv()
+                if len(msg) == 0:
+                    break
+            except TimeoutError:
+                self.connected = False
+                self.disconnect("CAPI connection timed out")
+                return
 
             obj = json.loads(msg)
 
