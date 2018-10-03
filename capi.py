@@ -153,8 +153,8 @@ class CapiClient(Thread):
         try:
             self.socket.send(json.dumps(msg), websocket.ABNF.OPCODE_TEXT)
             self.parent.debug("Sent CAPI command: %s" % command)
-        except websocket.WebSocketException as err:
-            self.disconnect(str(err))
+        except (TimeoutError, websocket.WebSocketException) as ex:
+            self.disconnect(str(ex))
             return False
 
         self._requests[rid] = msg
@@ -194,9 +194,8 @@ class CapiClient(Thread):
                 msg = self.socket.recv()
                 if len(msg) == 0:
                     break
-            except TimeoutError:
-                self.connected = False
-                self.disconnect("CAPI connection timed out")
+            except (TimeoutError, websocket.WebSocketException) as ex:
+                self.disconnect(str(ex))
                 return
 
             obj = json.loads(msg)
