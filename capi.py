@@ -153,7 +153,7 @@ class CapiClient(Thread):
         try:
             self.socket.send(json.dumps(msg), websocket.ABNF.OPCODE_TEXT)
             self.parent.debug("Sent CAPI command: %s" % command)
-        except (TimeoutError, websocket.WebSocketException) as ex:
+        except (TimeoutError, websocket.WebSocketException, ConnectionResetError) as ex:
             self.disconnect(str(ex))
             return False
 
