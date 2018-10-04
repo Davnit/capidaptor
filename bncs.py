@@ -146,7 +146,7 @@ class ThinBncsClient(Thread):
             self.parent.debug("Received BNCS packet 0x%02x (len: %i)" % (pid, length))
             return pid, pak
         else:
-            self.disconnect("Failed to receive packet header")
+            self.disconnect("Client closed the connection")
             return None, None
 
     def run(self):
