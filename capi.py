@@ -194,7 +194,7 @@ class CapiClient(Thread):
                 msg = self.socket.recv()
                 if len(msg) == 0:
                     break
-            except (TimeoutError, websocket.WebSocketException) as ex:
+            except (TimeoutError, websocket.WebSocketException, ConnectionResetError) as ex:
                 self.disconnect(str(ex))
                 return
 
