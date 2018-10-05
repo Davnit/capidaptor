@@ -194,7 +194,7 @@ class ThinBncsClient(Thread):
             # The result for this packet is flipped. 0 = failure, 1 = success
             pak.insert_dword(0x01 if status == 0x00 else 0x00)
             self.send(SID_LOGONRESPONSE, pak)
-        if self.logon_type == 0:
+        elif self.logon_type == 0:
             # Old login (OLS)
             pak.insert_dword(0x06 if is_str else status)
             if is_str:
