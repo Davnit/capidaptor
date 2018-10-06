@@ -2,8 +2,10 @@
 from bncs import ThinBncsClient, SID_NULL
 from capi import CapiClient
 
-from threading import Thread, Lock, Timer
+from threading import Thread, Lock
 from socket import socket, AF_INET, SOCK_STREAM
+from datetime import datetime
+import time
 
 
 class Server(Thread):
@@ -22,28 +24,65 @@ class Server(Thread):
         self.clients = {}
 
         self.lock = Lock()
-        super().__init__()
 
-        self._keep_alive_timer = Timer(300, self._send_keep_alives)
-        self._keep_alive_timer.daemon = True
-        self._keep_alive_timer.start()
+        # Setup and start the thread for checking connection status
+        self.ping_thread = Thread(target=self._check_connections)
+        self.ping_thread.daemon = True
+        self.ping_thread.start()
+
+        super().__init__()
 
     def run(self):
         print("[Server] ThinBNCS server started - listening on port %i" % self.port)
         while True:
             (client, address) = self.socket.accept()
             obj = Client(self, client, address, self.get_client_id())
+            self.clients[obj.id] = obj
+
             obj.print("Connected from %s" % address[0])
 
-            self.clients[obj.id] = obj
-            obj.bncs.start()
+            if obj.capi.connect():
+                obj.bncs.start()
+                obj.capi.start()
+            else:
+                obj.close("Unable to connect to the chat API.")
 
-    def _send_keep_alives(self):
-        self.lock.acquire()
+    def _check_connections(self):
+        last_nulls = datetime.now()
 
-        for c in self.clients.values():
-            c.bncs.send(SID_NULL)
-        self.lock.release()
+        while True:
+            now = datetime.now()
+            send_nulls = (now - last_nulls).total_seconds() > 60
+
+            for c in list(self.clients.values()):
+                # Check for state issue that wasn't caught elsewhere
+                if c.bncs.logged_on and not (c.capi.connected and c.capi.socket.connected):
+                    c.close("Monitor found CAPI disconnected")
+                elif not c.bncs.connected:
+                    c.close("Monitor found BNCS disconnected")
+
+                # Check for idle BNCS connections
+                idle_time = (now - c.bncs.last_talk).total_seconds()
+                if idle_time >= 90:
+                    c.close("BNCS client not responding")
+                elif idle_time >= 30:
+                    c.bncs.send_ping()
+
+                # Send BNCS NULL packets every minute regardless of activity
+                if send_nulls:
+                    c.bncs.send(SID_NULL)
+
+                # Check for idle CAPI connections
+                idle_time = (now - c.capi.last_talk).total_seconds()
+                if idle_time >= 30:
+                    c.close("CAPI server not responding")
+                else:
+                    c.capi.send_ping()
+
+            if send_nulls:
+                last_nulls = datetime.now()
+
+            time.sleep(10)
 
     def get_client_id(self):
         self.lock.acquire()
@@ -51,6 +90,7 @@ class Server(Thread):
         x = 1
         while x in self.clients.keys():
             x += 1
+
         self.lock.release()
         return x
 

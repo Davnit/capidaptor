@@ -1,11 +1,12 @@
 
+import bncs
+
 import ssl
 import json
 from threading import Thread
+from datetime import datetime
 
 import websocket
-
-import bncs
 
 
 status_codes = {
@@ -102,6 +103,8 @@ class CapiClient(Thread):
         self.connected = False
         self.channel = None
         self.username = None
+        self.last_talk = None
+        self._disconnecting = False
 
         self._last_request_id = 0
         self._requests = {}
@@ -119,9 +122,9 @@ class CapiClient(Thread):
             "Botapichat.SendWhisperResponse": self._handle_send_whisper_response
         }
 
-        self.socket = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
         super().__init__()
         self.daemon = True
+        self.socket = None
 
     def get_user(self, identifier):
         # Identifier can be user id or toon name
@@ -136,12 +139,33 @@ class CapiClient(Thread):
                     return user
         return None
 
+    def connect(self):
+        self.socket = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
+        try:
+            self.socket.connect(self.endpoint)
+        except (websocket.WebSocketException, TimeoutError, ConnectionError):
+            return False
+
+        self.connected = True
+        self._disconnecting = False
+        self.last_talk = datetime.now()
+        return True
+
     def disconnect(self, reason=None):
-        if self.socket.connected:
-            self.send_command("Botapichat.DisconnectRequest")
+        if self._disconnecting:
+            return
+
+        self._disconnecting = True
+        self.send_command("Botapichat.DisconnectRequest")
         self.parent.close(reason)
 
+    def send_ping(self):
+        self.socket.ping(str(datetime.now()))
+
     def send_command(self, command, payload=None):
+        if not self.connected:
+            return False
+
         rid = self._last_request_id = (self._last_request_id + 1)
 
         msg = {
@@ -153,8 +177,8 @@ class CapiClient(Thread):
         try:
             self.socket.send(json.dumps(msg), websocket.ABNF.OPCODE_TEXT)
             self.parent.debug("Sent CAPI command: %s" % command)
-        except (TimeoutError, websocket.WebSocketException, ConnectionResetError) as ex:
-            self.disconnect(str(ex))
+        except (TimeoutError, websocket.WebSocketException, ConnectionError) as ex:
+            self.disconnect("CAPI send failed: %s" % ex)
             return False
 
         self._requests[rid] = msg
@@ -191,12 +215,19 @@ class CapiClient(Thread):
     def run(self):
         while self.socket.connected:
             try:
-                msg = self.socket.recv()
-                if len(msg) == 0:
-                    break
-            except (TimeoutError, websocket.WebSocketException, ConnectionResetError) as ex:
-                self.disconnect(str(ex))
+                opcode, data = self.socket.recv_data(True)
+            except (TimeoutError, websocket.WebSocketException, ConnectionError) as ex:
+                self.disconnect("CAPI receive failed: %s" % ex)
                 return
+
+            self.last_talk = datetime.now()
+
+            # Check for certain control messages.
+            if opcode != websocket.ABNF.OPCODE_TEXT:
+                # Ignore them
+                continue
+            else:
+                msg = data.decode("utf-8")
 
             obj = json.loads(msg)
 
@@ -237,16 +268,11 @@ class CapiClient(Thread):
                 if command in self._handlers:
                     self._handlers.get(command)(request, payload, status)
 
-        self.disconnect("Chat API thread exited")
+        self.disconnect("CAPI thread exited")
 
     def authenticate(self, api_key):
         self.api_key = api_key
-
-        self.socket.connect(self.endpoint)
-        self.connected = True
-
         self.send_command("Botapiauth.AuthenticateRequest", {"api_key": api_key})
-        self.start()
 
     def _handle_auth_response(self, request, response, error):
         if error:

@@ -2,6 +2,7 @@
 import buffer
 
 from threading import Thread
+from datetime import datetime
 import random
 
 
@@ -57,6 +58,8 @@ FLAG_SQUELCHED = 0x20
 
 ERROR_NOTLOGGEDON = "That user is not logged on."
 
+IGNORE_PACKETS = [SID_NULL, SID_PING]
+
 
 class ThinBncsClient(Thread):
     def __init__(self, parent, socket):
@@ -70,6 +73,7 @@ class ThinBncsClient(Thread):
         self.username = None
 
         self.logon_type = 0
+        self.last_talk = datetime.now()
 
         self._handlers = {
             # Modern version checking
@@ -110,7 +114,7 @@ class ThinBncsClient(Thread):
 
     def send(self, pid, payload=None):
         if not self.connected:
-            return
+            return False
 
         pak = buffer.DataBuffer()
         pak.insert_byte(0xFF)
@@ -122,31 +126,46 @@ class ThinBncsClient(Thread):
         else:
             pak.insert_word(4)
 
-        self.socket.sendall(pak.data)
-        self.parent.debug("Sent BNCS packet 0x%02x (len: %i)" % (pid, len(pak)))
+        try:
+            self.socket.sendall(pak.data)
+        except (ConnectionError, TimeoutError) as ex:
+            self.parent.close("BNCS send failed: %s" % ex)
+            return False
+
+        if pid not in IGNORE_PACKETS:
+            self.parent.debug("Sent BNCS packet 0x%02x (len: %i)" % (pid, len(pak)))
+
+        return True
 
     def receive(self):
         if not self.connected:
             return None, None
 
-        # Get packet header
-        header = self.socket.recv(4)
-        if len(header) == 4:
-            pak = buffer.DataReader(header)
-            if pak.get_byte() != 0xFF:
-                self.disconnect("Invalid BNCS packet header")
-                return None, pak
+        try:
+            # Get packet header
+            header = self.socket.recv(4)
+            if len(header) == 4:
+                pak = buffer.DataReader(header)
+                if pak.get_byte() != 0xFF:
+                    self.disconnect("Invalid BNCS packet header")
+                    return None, pak
 
-            pid = pak.get_byte()
-            length = pak.get_word()
+                pid = pak.get_byte()
+                length = pak.get_word()
 
-            if length > 4:
-                pak.data += self.socket.recv(length - 4)
+                if length > 4:
+                    pak.data += self.socket.recv(length - 4)
 
-            self.parent.debug("Received BNCS packet 0x%02x (len: %i)" % (pid, length))
-            return pid, pak
-        else:
-            self.disconnect("Client closed the connection")
+                if pid not in IGNORE_PACKETS:
+                    self.parent.debug("Received BNCS packet 0x%02x (len: %i)" % (pid, length))
+
+                self.last_talk = datetime.now()
+                return pid, pak
+            else:
+                self.disconnect("Client closed the connection")
+                return None, None
+        except (ConnectionError, TimeoutError) as ex:
+            self.disconnect("BNCS receive failed: %s" % ex)
             return None, None
 
     def run(self):
@@ -223,6 +242,11 @@ class ThinBncsClient(Thread):
         pak.insert_string(stats)
         pak.insert_string(account)
         self.send(SID_ENTERCHAT, pak)
+
+    def send_ping(self):
+        pak = buffer.DataBuffer()
+        pak.insert_dword(random.getrandbits(32))
+        self.send(SID_PING, pak)
 
     def _handle_auth_info(self, pid, pak):
         if self.product:
