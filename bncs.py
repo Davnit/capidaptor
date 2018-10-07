@@ -249,7 +249,7 @@ class ThinBncsClient(Thread):
         self.send(SID_PING, pak)
 
     def _handle_auth_info(self, pid, pak):
-        if self.product:
+        if self.product is not None:
             self.disconnect("Sent repeat client auth.")
             return
 
@@ -405,6 +405,10 @@ class ThinBncsClient(Thread):
         self.send(SID_GETICONDATA, pak)
 
     def _handle_start_versioning(self, pid, pak):
+        if self.product is not None:
+            self.disconnect("Sent repeat client auth")
+            return
+
         pak.get_dword()
         self.product = pak.get_dword(True)
         if self.product not in products:
