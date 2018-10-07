@@ -207,6 +207,10 @@ class ThinBncsClient(Thread):
         # Status can be a number (0 = success, 2 = fail) or custom error message string.
         is_str = isinstance(status, str)
 
+        if status == 0x00:
+            self.parent.print("BNCS login complete - authenticated to chat API")
+            self.logged_on = True
+
         pak = buffer.DataBuffer()
         if self.logon_type == -1:
             # Legacy login
@@ -225,10 +229,6 @@ class ThinBncsClient(Thread):
             pak.insert_raw(proof or (b'\0' * 20))
             pak.insert_string(status if is_str else '')
             self.send(SID_AUTH_ACCOUNTLOGONPROOF, pak)
-
-        if status == 0x00:
-            self.parent.print("BNCS login complete - authenticated to chat API")
-            self.logged_on = True
 
     def enter_chat(self, username, stats, account=None):
         self.username = username
@@ -313,7 +313,7 @@ class ThinBncsClient(Thread):
         self.send(SID_AUTH_ACCOUNTLOGON, pak)
 
     def _handle_enterchat(self, pid, pak):
-        if not self.logged_on or not self.parent.capi.connected:
+        if not (self.logged_on and self.parent.capi.connected):
             self.disconnect("Attempt to enter chat before login")
             return
 
