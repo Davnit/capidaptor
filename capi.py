@@ -251,8 +251,12 @@ class CapiClient(Thread):
 
                 self.parent.debug("Received CAPI command: %s%s" %
                                   (command, ('' if status is None else (" (status: %s)" % str(status)))))
+
                 if len(payload) > 0:
                     self.parent.debug("Payload: %s" % payload)
+
+                if status:
+                    self.parent.print("ERROR: '%s' received status: '%s'" % (command, status))
 
                 # Find the request for this message.
                 request = None
