@@ -26,9 +26,9 @@ class Server(Thread):
         self.lock = Lock()
 
         # Setup and start the thread for checking connection status
-        self.ping_thread = Thread(target=self._check_connections)
-        self.ping_thread.daemon = True
-        self.ping_thread.start()
+        self.monitor = Thread(target=self._check_connections)
+        self.monitor.daemon = True
+        self.monitor.start()
 
         super().__init__()
 
@@ -62,22 +62,24 @@ class Server(Thread):
                     c.close("Monitor found BNCS disconnected")
 
                 # Check for idle BNCS connections
-                idle_time = (now - c.bncs.last_talk).total_seconds()
-                if idle_time >= 90:
-                    c.close("BNCS client not responding")
-                elif idle_time >= 30:
-                    c.bncs.send_ping()
+                if c.bncs.connected and c.bncs.last_talk is not None:
+                    idle_time = (now - c.bncs.last_talk).total_seconds()
+                    if idle_time >= 90:
+                        c.close("BNCS client not responding")
+                    elif idle_time >= 30:
+                        c.bncs.send_ping()
 
-                # Send BNCS NULL packets every minute regardless of activity
-                if send_nulls:
-                    c.bncs.send(SID_NULL)
+                    # Send BNCS NULL packets every minute regardless of activity
+                    if send_nulls:
+                        c.bncs.send(SID_NULL)
 
                 # Check for idle CAPI connections
-                idle_time = (now - c.capi.last_talk).total_seconds()
-                if idle_time >= 30:
-                    c.close("CAPI server not responding")
-                else:
-                    c.capi.send_ping()
+                if c.capi.connected and c.capi.last_talk is not None:
+                    idle_time = (now - c.capi.last_talk).total_seconds()
+                    if idle_time >= 30:
+                        c.close("CAPI server not responding")
+                    else:
+                        c.capi.send_ping()
 
             if send_nulls:
                 last_nulls = datetime.now()
