@@ -335,7 +335,8 @@ class CapiClient(Thread):
 
         self._users[user.id] = user
         if len(user.attributes) > 0:
-            self.parent.print("Attribute(s) found for user '%s': %s" % (user.name, attributes))
+            if len(user.attributes) > 1 or "ProgramId" not in user.attributes:
+                self.parent.print("Attribute(s) found for user '%s': %s" % (user.name, attributes))
 
     def _handle_user_leave_event(self, request, response, error):
         user = self.get_user(response.get("user_id"))
