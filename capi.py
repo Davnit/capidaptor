@@ -78,6 +78,10 @@ class CapiUser(object):
         self.name = name
         self.flags = flags or []
 
+        self.attributes = {}
+        self.set_attributes(attributes)
+
+    def set_attributes(self, attributes):
         # Normalize attributes into a simple dictionary.
         self.attributes = {}
         if isinstance(attributes, list):
@@ -318,7 +322,7 @@ class CapiClient(Thread):
                     if flags:
                         user.flags = flags
                     if attributes:
-                        user.attributes = attributes
+                        user.set_attributes(attributes)
                 elif user.id == 1:
                     # It's us so we can switch to joins instead of show user
                     eid = bncs.EID_SHOWUSER
