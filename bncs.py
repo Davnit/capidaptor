@@ -188,7 +188,7 @@ class ThinBncsClient(Thread):
 
         self.disconnect("BNCS thread exited")
 
-    def send_chat(self, eid, username, text, flags=0, ping=0):
+    def send_chat(self, eid, username, text, flags=0, ping=0, encoding='utf-8'):
         pak = buffer.DataBuffer()
         pak.insert_dword(eid)
         pak.insert_dword(flags)
@@ -197,7 +197,7 @@ class ThinBncsClient(Thread):
         pak.insert_dword(0xbaadf00d)    # Account number
         pak.insert_dword(0xbaadf00d)    # Registration authority
         pak.insert_string(username)
-        pak.insert_string(text)
+        pak.insert_string(text, encoding)
         self.send(SID_CHATEVENT, pak)
 
     def send_error(self, message):
