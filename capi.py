@@ -328,19 +328,29 @@ class CapiClient(Thread):
             self.parent.bncs.enter_chat(self.username, get_statstring(user.attributes))
         else:
             if user.id in self._users:
+                changes = False
+
                 # Actually an update
-                if (flags and user.flags != flags) or (attributes and user.attributes != attributes):
+                if flags or attributes:
                     eid = bncs.EID_USERFLAGS
 
-                    if flags:
+                    if flags and user.flags != flags:
                         user.flags = flags
+                        changes = True
                     if attributes:
+                        old_attr = user.attributes
                         user.set_attributes(attributes)
-                elif user.id == 1:
+                        if user.attributes != old_attr:
+                            changes = True
+                elif user.id == 1 and not self._received_users:
                     # It's us so we can switch to joins instead of show user
                     eid = bncs.EID_SHOWUSER
                     self._received_users = True
+                    changes = True
                 else:
+                    eid = None      # Satisfies an assignment check
+
+                if not changes:
                     # It's an update where nothing changed??
                     self.parent.print("Received user update with no changes")
                     return
