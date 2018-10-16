@@ -224,19 +224,29 @@ class CapiClient(Thread):
             try:
                 opcode, data = self.socket.recv_data(True)
             except (TimeoutError, websocket.WebSocketException, ConnectionError) as ex:
-                self.disconnect("CAPI receive failed: %s" % ex)
-                return
+                if isinstance(ex, websocket.WebSocketPayloadException):
+                    self.parent.print("Received CAPI message with invalid UTF-8.")
+                    # We can keep going after this it shouldn't be an issue.
+                    continue
+                else:
+                    self.disconnect("CAPI receive failed: %s" % ex)
+                    return
 
             self.last_talk = datetime.now()
 
             # Check for certain control messages.
             if opcode != websocket.ABNF.OPCODE_TEXT:
-                # Ignore them
+                # Ignore these we just needed to record the time.
                 continue
-            else:
-                msg = data.decode("utf-8")
 
-            obj = json.loads(msg)
+            msg = data.decode('utf-8')
+
+            try:
+                obj = json.loads(msg)
+            except json.JSONDecodeError:
+                self.parent.print("Received CAPI message with invalid JSON: %s" % msg)
+                # This might not be the end of the world. Don't give up just yet.
+                continue
 
             if not (obj and isinstance(obj, dict)):
                 self.parent.print("Received invalid CAPI message (length: %i)" % len(msg))
