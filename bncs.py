@@ -57,6 +57,7 @@ FLAG_BNETADMIN = 0x08
 FLAG_SQUELCHED = 0x20
 
 ERROR_NOTLOGGEDON = "That user is not logged on."
+GATEWAY_USER = "CAPI Gateway"
 
 IGNORE_PACKETS = [SID_NULL, SID_PING]
 
@@ -201,7 +202,7 @@ class ThinBncsClient(Thread):
         self.send(SID_CHATEVENT, pak)
 
     def send_error(self, message):
-        self.send_chat(EID_ERROR, "CAPI Gateway", message)
+        self.send_chat(EID_ERROR, GATEWAY_USER, message)
 
     def send_logon_response(self, status=0, proof=None):
         # Status can be a number (0 = success, 2 = fail) or custom error message string.
@@ -349,6 +350,14 @@ class ThinBncsClient(Thread):
                         cmd = "op"
 
                     self.parent.capi.bankickunban(arg[0], cmd)
+            elif cmd == "capi":
+                if len(parts) > 0 and parts[1] == "debug":
+                    last_message = self.parent.capi.last_talk
+                    self.send_chat(EID_INFO, GATEWAY_USER, "Last CAPI message received: %s (%s seconds ago)" %
+                                   (last_message, int((datetime.now() - last_message).total_seconds())))
+                    self.send_chat(EID_INFO, GATEWAY_USER, "CAPI connected: %s" % self.parent.capi.connected())
+                    self.send_chat(EID_INFO, GATEWAY_USER, "Connection monitor active: %s" %
+                                   self.parent.server.monitor.is_alive())
             else:
                 if cmd in unsupported_commands:
                     if not self.parent.server.ignore_unsupported_commands:
