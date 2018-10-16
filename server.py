@@ -56,7 +56,7 @@ class Server(Thread):
 
             for c in list(self.clients.values()):
                 # Check for state issue that wasn't caught elsewhere
-                if c.bncs.logged_on and c.capi.connected():
+                if c.bncs.logged_on and not c.capi.connected():
                     c.close("Monitor found CAPI disconnected")
                 elif not c.bncs.connected:
                     c.close("Monitor found BNCS disconnected")
