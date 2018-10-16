@@ -314,7 +314,7 @@ class ThinBncsClient(Thread):
         self.send(SID_AUTH_ACCOUNTLOGON, pak)
 
     def _handle_enterchat(self, pid, pak):
-        if not (self.logged_on and self.parent.capi.connected):
+        if not (self.logged_on and self.parent.capi.connected()):
             self.disconnect("Attempt to enter chat before login")
             return
 

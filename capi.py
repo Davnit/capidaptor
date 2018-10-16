@@ -104,7 +104,7 @@ class CapiClient(Thread):
         self.endpoint = endpoint or "wss://connect-bot.classic.blizzard.com/v1/rpc/chat"
         self.api_key = None
 
-        self.connected = False
+        self._connected = False
         self.channel = None
         self.username = None
         self.last_talk = None
@@ -130,6 +130,9 @@ class CapiClient(Thread):
         self.daemon = True
         self.socket = None
 
+    def connected(self):
+        return (self._connected and self.socket is not None and self.socket.connected)
+
     def get_user(self, identifier):
         # Identifier can be user id or toon name
         if isinstance(identifier, int):
@@ -150,7 +153,7 @@ class CapiClient(Thread):
         except (websocket.WebSocketException, TimeoutError, ConnectionError):
             return False
 
-        self.connected = True
+        self._connected = True
         self._disconnecting = False
         self.last_talk = datetime.now()
         return True
@@ -167,7 +170,7 @@ class CapiClient(Thread):
         self.socket.ping(str(datetime.now()))
 
     def send_command(self, command, payload=None):
-        if not self.connected:
+        if not self.connected():
             return False
 
         rid = self._last_request_id = (self._last_request_id + 1)
@@ -217,7 +220,7 @@ class CapiClient(Thread):
             self.send_command(action, payload)
 
     def run(self):
-        while self.socket.connected:
+        while self.connected():
             try:
                 opcode, data = self.socket.recv_data(True)
             except (TimeoutError, websocket.WebSocketException, ConnectionError) as ex:

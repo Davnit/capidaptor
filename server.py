@@ -56,7 +56,7 @@ class Server(Thread):
 
             for c in list(self.clients.values()):
                 # Check for state issue that wasn't caught elsewhere
-                if c.bncs.logged_on and not (c.capi.connected and c.capi.socket.connected):
+                if c.bncs.logged_on and c.capi.connected():
                     c.close("Monitor found CAPI disconnected")
                 elif not c.bncs.connected:
                     c.close("Monitor found BNCS disconnected")
@@ -74,7 +74,7 @@ class Server(Thread):
                         c.bncs.send(SID_NULL)
 
                 # Check for idle CAPI connections
-                if c.capi.connected and c.capi.last_talk is not None:
+                if c.capi.connected() and c.capi.last_talk is not None:
                     idle_time = (now - c.capi.last_talk).total_seconds()
                     if idle_time >= 30:
                         c.close("CAPI server not responding")
@@ -114,9 +114,9 @@ class Client(object):
             self.bncs.socket.close()
             self.bncs.connected = False
 
-        if self.capi.connected:
+        if self.capi.connected():
             self.capi.socket.close()
-            self.capi.connected = False
+            self.capi._connected = False
 
         if self.id in self.server.clients.keys():
             self.print("Connections closed%s" % ((": " + reason) if reason else ''))
