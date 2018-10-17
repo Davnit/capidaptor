@@ -367,9 +367,12 @@ class ThinBncsClient(Thread):
             else:
                 if cmd in unsupported_commands:
                     if not self.parent.server.ignore_unsupported_commands:
-                        if cmd in ["unsquelch", "unignore"] or len(parts) == 2:
+                        if cmd in ["unsquelch", "unignore"] and len(parts) == 2:
                             name = parts[1].lower()
                             if name in [self.username.lower(), "*" + self.username.lower()]:
+                                # Send flag updates for every user in the channel
+                                for user in self.parent.capi.users.values():
+                                    self.send_chat(EID_USERFLAGS, user.name, '', user.get_flags())
                                 return
 
                         self.send_error("That command is not supported by the chat API.")

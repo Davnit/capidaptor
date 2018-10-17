@@ -97,6 +97,12 @@ class CapiUser(object):
         elif attributes is not None:
             print("Unexpected attribute format (%s): %s" % (type(attributes).__name__, attributes))
 
+    def get_flags(self):
+        return get_flag_int(self.flags)
+
+    def get_statstring(self):
+        return get_statstring(self.attributes)
+
 
 class CapiClient(Thread):
     def __init__(self, parent, endpoint=None):
@@ -104,16 +110,16 @@ class CapiClient(Thread):
         self.endpoint = endpoint or "wss://connect-bot.classic.blizzard.com/v1/rpc/chat"
         self.api_key = None
 
-        self._connected = False
+        self.users = {}
         self.channel = None
         self.username = None
         self.last_talk = None
-        self._disconnecting = False
 
+        self._connected = False
+        self._disconnecting = False
         self._last_request_id = 0
         self._requests = {}
         self._received_users = False
-        self._users = {}
 
         self._handlers = {
             "Botapiauth.AuthenticateResponse": self._handle_auth_response,
@@ -136,12 +142,12 @@ class CapiClient(Thread):
     def get_user(self, identifier):
         # Identifier can be user id or toon name
         if isinstance(identifier, int):
-            return self._users.get(identifier)
+            return self.users.get(identifier)
         elif isinstance(identifier, str):
             if identifier.startswith("*"):
                 identifier = identifier[1:]
 
-            for user in self._users.values():
+            for user in self.users.values():
                 if user.name.lower() == identifier.lower():
                     return user
         return None
@@ -327,7 +333,7 @@ class CapiClient(Thread):
             self.username = user.name
             self.parent.bncs.enter_chat(self.username, get_statstring(user.attributes))
         else:
-            if user.id in self._users:
+            if user.id in self.users:
                 changes = False
 
                 # Actually an update
@@ -360,7 +366,7 @@ class CapiClient(Thread):
             # Relay the event
             self.parent.bncs.send_chat(eid, user.name, get_statstring(user.attributes), get_flag_int(user.flags))
 
-        self._users[user.id] = user
+        self.users[user.id] = user
         if len(user.attributes) > 0:
             if len(user.attributes) > 1 or "ProgramId" not in user.attributes:
                 self.parent.print("Attribute(s) found for user '%s': %s" % (user.name, attributes))
@@ -369,7 +375,7 @@ class CapiClient(Thread):
         user = self.get_user(response.get("user_id"))
         if user:
             self.parent.bncs.send_chat(bncs.EID_LEAVE, user.name, '', get_flag_int(user.flags))
-            del self._users[user.id]
+            del self.users[user.id]
         else:
             self.parent.print("Received leave event for unknown user")
 
