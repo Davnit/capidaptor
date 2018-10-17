@@ -364,7 +364,7 @@ class CapiClient(Thread):
                 eid = bncs.EID_JOIN if self._received_users else bncs.EID_SHOWUSER
 
             # Relay the event
-            self.parent.bncs.send_chat(eid, user.name, get_statstring(user.attributes), get_flag_int(user.flags))
+            self.parent.bncs.send_chat(eid, user.name, user.get_statstring(), user.get_flags())
 
         self.users[user.id] = user
         if len(user.attributes) > 0:

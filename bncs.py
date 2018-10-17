@@ -372,7 +372,7 @@ class ThinBncsClient(Thread):
                             if name in [self.username.lower(), "*" + self.username.lower()]:
                                 # Send flag updates for every user in the channel
                                 for user in self.parent.capi.users.values():
-                                    self.send_chat(EID_USERFLAGS, user.name, '', user.get_flags())
+                                    self.send_chat(EID_USERFLAGS, user.name, user.get_statstring(), user.get_flags())
                                 return
 
                         self.send_error("That command is not supported by the chat API.")
