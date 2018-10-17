@@ -4,6 +4,7 @@ import buffer
 from threading import Thread
 from datetime import datetime
 import random
+import json
 
 
 protocols = [
@@ -351,13 +352,18 @@ class ThinBncsClient(Thread):
 
                     self.parent.capi.bankickunban(arg[0], cmd)
             elif cmd == "capi":
-                if len(parts) > 0 and parts[1] == "debug":
-                    last_message = self.parent.capi.last_talk
-                    self.send_chat(EID_INFO, GATEWAY_USER, "Last CAPI message received: %s (%s seconds ago)" %
-                                   (last_message, int((datetime.now() - last_message).total_seconds())))
-                    self.send_chat(EID_INFO, GATEWAY_USER, "CAPI connected: %s" % self.parent.capi.connected())
-                    self.send_chat(EID_INFO, GATEWAY_USER, "Connection monitor active: %s" %
-                                   self.parent.server.monitor.is_alive())
+                if len(parts) > 1:
+                    sub = parts[1].split(' ', maxsplit=1)
+                    if sub[0] == "debug":
+                        last_message = self.parent.capi.last_talk
+                        self.send_chat(EID_INFO, GATEWAY_USER, "Last CAPI message received: %s (%s seconds ago)" %
+                                       (last_message, int((datetime.now() - last_message).total_seconds())))
+                        self.send_chat(EID_INFO, GATEWAY_USER, "CAPI connected: %s" % self.parent.capi.connected())
+                        self.send_chat(EID_INFO, GATEWAY_USER, "Connection monitor active: %s" %
+                                       self.parent.server.monitor.is_alive())
+                    elif sub[0] == "send" and len(sub) > 1:
+                        arg = sub[1].split(' ', maxsplit=1)
+                        self.parent.capi.send_command(arg[0], json.loads(arg[1]) if len(arg) > 1 else None)
             else:
                 if cmd in unsupported_commands:
                     if not self.parent.server.ignore_unsupported_commands:
