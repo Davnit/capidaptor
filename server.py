@@ -13,6 +13,8 @@ class Server(Thread):
         self.port = port
         self.iface = iface
 
+        self.out_format = "Client #%client_id: %message"
+        self.debug_format = "DEBUG [%client_id]: %message"
         self.debug = False
         self.ignore_unsupported_commands = False
         self.do_version_check = False
@@ -96,6 +98,17 @@ class Server(Thread):
         self.lock.release()
         return x
 
+    def format_message(self, client, fmt, message):
+        dt = datetime.now()
+        r = fmt.replace("%message", str(message))
+        r = r.replace("%client_id", str(client.id))
+        r = r.replace("%ip", str(client.address[0]))
+        r = r.replace("%name", str(client.capi.username or ''))
+        r = r.replace("%channel", str(client.capi.channel or ''))
+
+        # For time formatting codes, see: https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+        return dt.strftime(r)
+
 
 class Client(object):
     def __init__(self, server, client, address, client_id):
@@ -125,11 +138,11 @@ class Client(object):
         self.server.lock.release()
 
     def print(self, text):
-        print("Client #%i - %s" % (self.id, text))
+        print(self.server.format_message(self, self.server.out_format, text))
 
     def debug(self, text):
         if self.server.debug:
-            print("DEBUG: %s" % text)
+            print(self.server.format_message(self, self.server.debug_format, text))
 
     def error(self, message):
         self.bncs.send_error(message)
