@@ -8,7 +8,19 @@ Currently supports CAPI v3.
 - The '`websocket-client`' package from pip.
 
 # Usage
+### API Key
+To use the chat API you will need to acquire an API key from Battle.net. To do this follow these steps:
+1. Go to your preferred op or clan channel (you must be the owner).
+2. Use the /register-bot command. You must have en email address registered to your account.
+3. Check your email and follow the instructions to activate and obtain your API key.
+
 ### Installation
+**Standalone EXE / Windows**
+1. Download capidaptor.exe from the [releases](https://github.com/Davnit/capidaptor/releases) page.
+2. Set any of the desired command line arguments in the EXE properties.
+3. Run the EXE.
+
+**From source / Mac or Linux**
 1. Install Python v3.5 or newer: https://www.python.org/
 2. Run setup.py - `python setup.py install` (this will install the single dependency)
 3. If running this on a Linux-like environment, it is recommended you add the command-line argument `--user` to the above.
