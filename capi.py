@@ -293,7 +293,17 @@ class CapiClient(Thread):
 
                 # Run the command handler, if available.
                 if command in self._handlers:
-                    self._handlers.get(command)(request, payload, status)
+                    try:
+                        self._handlers.get(command)(request, payload, status)
+                    except Exception as ex:
+                        self.parent.print("ERROR! Something happened while processing received command '%s'." % command)
+                        self.parent.print("ERROR!   Status: %s" % status)
+                        self.parent.print("ERROR!   Payload: %s" % payload)
+                        self.parent.print("ERROR!   Request: %s" % request)
+                        self.parent.print("ERROR!   Exception: %s" % ex)
+
+                        if self.parent.server.debug:
+                            raise
 
         self.disconnect("CAPI thread exited")
 
