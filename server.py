@@ -16,6 +16,7 @@ class Server(Thread):
         self.out_format = "Client #%client_id: %message"
         self.debug_format = "DEBUG [%client_id]: %message"
         self.debug = False
+        self.encoding_errors = 'namereplace' if self.debug else 'replace'
         self.ignore_unsupported_commands = False
         self.do_version_check = False
 

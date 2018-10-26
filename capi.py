@@ -386,7 +386,13 @@ class CapiClient(Thread):
 
         eid = message_eids.get(mtype.lower())
         if eid is not None:
-            self.parent.bncs.send_chat(eid, user.name, message, get_flag_int(user.flags), encoding='latin-1')
+            flags = get_flag_int(user.flags)
+            # String encoding problems... try UTF-8, then latin-1 and use character replacing
+            try:
+                self.parent.bncs.send_chat(eid, user.name, message, flags)
+            except UnicodeEncodeError:
+                self.parent.bncs.send_chat(eid, user.name, message, flags,
+                                           encoding='latin-1', errors=self.parent.server.encoding_errors)
         else:
             self.parent.print("Unrecognized chat message type (%s: %s)" % (mtype, message))
 

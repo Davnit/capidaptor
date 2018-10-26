@@ -27,8 +27,8 @@ class DataBuffer:
     def insert_long(self, long):
         self.insert_raw(pack('<Q', long))
 
-    def insert_string(self, s, encoding='utf-8'):
-        self.insert_raw((s + chr(0)).encode(encoding))
+    def insert_string(self, s, encoding='utf-8', errors=None):
+        self.insert_raw((s + chr(0)).encode(encoding, errors or 'strict'))
 
 
 class DataReader:
@@ -60,7 +60,7 @@ class DataReader:
     def get_long(self):
         return unpack('<Q', self.get_raw(8))[0]
 
-    def get_string(self, encoding='utf-8'):
-        r = self.get_raw(self.data.index(b'\00', self.position) - self.position).decode(encoding)
+    def get_string(self, encoding='utf-8', errors=None):
+        r = self.get_raw(self.data.index(b'\00', self.position) - self.position).decode(encoding, errors or 'strict')
         self.position += 1
         return r
