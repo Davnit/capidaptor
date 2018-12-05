@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='capidaptor',
-    version='1.0',
+    version='1.1',
     description='Proxy to allow legacy BNET clients to connect to the chat API',
     author='Davnit',
     author_email='david@davnit.net',
