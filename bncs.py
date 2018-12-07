@@ -205,31 +205,33 @@ class ThinBncsClient(Thread):
     def send_error(self, message):
         self.send_chat(EID_ERROR, GATEWAY_USER, message)
 
-    def send_logon_response(self, status=0, proof=None):
+    def send_logon_response(self, success, error=None, proof=None):
         # Status can be a number (0 = success, 2 = fail) or custom error message string.
-        is_str = isinstance(status, str)
 
-        if status == 0x00:
+        if success:
             self.parent.print("BNCS login complete - authenticated to chat API")
             self.logged_on = True
 
         pak = buffer.DataBuffer()
         if self.logon_type == -1:
             # Legacy login
-            # The result for this packet is flipped. 0 = failure, 1 = success
-            pak.insert_dword(0x01 if status == 0x00 else 0x00)
+            pak.insert_dword(0x01 if success else 0x00)
             self.send(SID_LOGONRESPONSE, pak)
         elif self.logon_type == 0:
             # Old login (OLS)
-            pak.insert_dword(0x06 if is_str else status)
-            if is_str:
-                pak.insert_string(status)
+            pak.insert_dword(0x00 if success else 0x02)
             self.send(SID_LOGONRESPONSE2, pak)
         elif self.logon_type in [1, 2]:
             # New login (NLS)
-            pak.insert_dword(0x0F if is_str else status)
+            if success:
+                pak.insert_dword(0x00)
+            elif error:
+                pak.insert_dword(0x0F)
+            else:
+                pak.insert_dword(0x02)
+
             pak.insert_raw(proof or (b'\0' * 20))
-            pak.insert_string(status if is_str else '')
+            pak.insert_string(error or '')
             self.send(SID_AUTH_ACCOUNTLOGONPROOF, pak)
 
     def enter_chat(self, username, stats, account=None):

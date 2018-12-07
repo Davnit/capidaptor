@@ -117,6 +117,7 @@ class CapiClient(Thread):
 
         self._connected = False
         self._disconnecting = False
+        self._authenticating = False
         self._last_request_id = 0
         self._requests = {}
         self._received_users = False
@@ -305,19 +306,26 @@ class CapiClient(Thread):
                         if self.parent.server.debug:
                             raise
 
-        self.disconnect("CAPI thread exited")
+        if self._authenticating:
+            self.parent.bncs.send_logon_response(False, "API key invalid")
+            self.parent.print("Authentication failed - API key rejected")
+            self._authenticating = False
+        else:
+            self.disconnect("CAPI thread exited")
 
     def authenticate(self, api_key):
         self.api_key = api_key
+        self._authenticating = True
         self.send_command("Botapiauth.AuthenticateRequest", {"api_key": api_key})
 
     def _handle_auth_response(self, request, response, error):
+        self._authenticating = False
         if error:
-            self.parent.bncs.send_logon_response(str(error))
+            self.parent.bncs.send_logon_response(False, str(error))
             self.disconnect("CAPI authentication failed: %s" % error)
         else:
             # Login successful
-            self.parent.bncs.send_logon_response(0x00)
+            self.parent.bncs.send_logon_response(True)
 
     def _handle_connect_response(self, request, response, error):
         if error:
