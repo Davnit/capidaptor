@@ -4,9 +4,9 @@ Transparent python proxy server that allows legacy BNETv1 binary clients to conn
 Currently supports CAPI v3.
 
 # How To Use (Basic)
-1. Acquire an API key from Battle.net.
-   1. Login to the account that owns the channel you want to run a bot in and join the channel. You must have an email address registered to your account.
-   2. Use the /register-bot command from that account.
+1. Acquire an API key from Battle.net (the following needs to be done from the actual game for WarCraft 3).
+   1. Login to the account that owns the channel you want to run a bot in and join the channel. You must have an email address registered to your account. If you do not have an email registered, use the `/set-email [email]` command.
+   2. Use the `/register-bot` command from that account.
    3. Check your email for your API key.
 2. Download capidaptor.exe from the [releases](https://github.com/Davnit/capidaptor/releases) page.
 3. Run your bot and set the following settings:
