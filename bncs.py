@@ -5,6 +5,7 @@ from threading import Thread
 from datetime import datetime
 import random
 import json
+import shlex
 
 
 protocols = [
@@ -326,50 +327,54 @@ class ThinBncsClient(Thread):
     def _handle_chatcommand(self, pid, pak):
         text = pak.get_string()
         if text.startswith("/"):
-            parts = text[1:].split(' ', maxsplit=1)
+            parts = shlex.split(text[1:])
             cmd = parts[0].lower()
 
             # BNCS commands
             if cmd in ["channel", "join"]:
-                self.send_error("Channel is restricted")
+                self.send_error("That channel is restricted")
             elif cmd in ["w", "m", "msg", "whisper"]:
                 if len(parts) == 1:
                     self.send_error(ERROR_NOTLOGGEDON)
                 else:
-                    arg = parts[1].split(' ', maxsplit=1)
-                    if len(arg) == 1:
+                    if len(parts) == 2:
                         self.send_error("What do you want to say?")
                     else:
-                        self.parent.capi.send_chat(arg[1], "whisper", arg[0])
+                        self.parent.capi.send_chat(' '.join(parts[2:]), "whisper", parts[1])
             elif cmd in ["me", "emote"]:
-                self.parent.capi.send_chat(parts[1] if len(parts) > 1 else '', "emote")
+                self.parent.capi.send_chat(' '.join(parts[1:]) if len(parts) > 1 else '', "emote")
             elif cmd in ["ban", "kick", "unban", "designate"]:
                 if len(parts) == 1:
                     self.send_error(ERROR_NOTLOGGEDON)
                 else:
-                    # The chat API doesn't support ban/kick messages, but BNCS clients may still send them.
-                    arg = parts[1].split(' ', maxsplit=1)
                     if cmd == "designate":      # Not really a reason for changing this it just seems nicer.
                         cmd = "op"
 
-                    self.parent.capi.bankickunban(arg[0], cmd)
+                    # The chat API does not support messages in ban/kick messages.
+                    self.parent.capi.bankickunban(parts[1], cmd)
             elif cmd == "capi":
                 if len(parts) > 1:
-                    sub = parts[1].split(' ', maxsplit=1)
-                    if sub[0] == "debug":
+                    if parts[1].lower() == "debug":
                         last_message = self.parent.capi.last_talk
                         self.send_chat(EID_INFO, GATEWAY_USER, "Last CAPI message received: %s (%s seconds ago)" %
                                        (last_message, int((datetime.now() - last_message).total_seconds())))
                         self.send_chat(EID_INFO, GATEWAY_USER, "CAPI connected: %s" % self.parent.capi.connected())
                         self.send_chat(EID_INFO, GATEWAY_USER, "Connection monitor active: %s" %
                                        self.parent.server.monitor.is_alive())
-                    elif sub[0] == "send" and len(sub) > 1:
-                        arg = sub[1].split(' ', maxsplit=1)
-                        self.parent.capi.send_command(arg[0], json.loads(arg[1]) if len(arg) > 1 else None)
+                    elif parts[1].lower() == "send":
+                        if len(parts) == 2:
+                            self.send_error("You must specify a message to send.")
+                        else:
+                            payload_start = text.index(parts[2]) + len(parts[2])
+                            payload_start = text.index(' ', payload_start) + 1
+                            payload = json.loads(text[payload_start:]) if len(parts) > 3 else None
+                            self.parent.capi.send_command(parts[2], payload)
+                else:
+                    self.send_chat(EID_INFO, GATEWAY_USER, "Available sub-commands: debug, send")
             else:
                 if cmd in unsupported_commands:
                     if not self.parent.server.ignore_unsupported_commands:
-                        if cmd in ["unsquelch", "unignore"] and len(parts) == 2:
+                        if cmd in ["unsquelch", "unignore"] and len(parts) > 1:
                             name = parts[1].lower()
                             if name in [self.username.lower(), "*" + self.username.lower()]:
                                 # Send flag updates for every user in the channel
