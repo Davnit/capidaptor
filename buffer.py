@@ -2,6 +2,48 @@
 from struct import pack, unpack
 
 
+def format_buffer(buff):
+    """Formats a data buffer as byte values and characters."""
+    if len(buff) == 0:
+        return
+
+    if isinstance(buff, (DataBuffer, DataReader)):
+        data = buff.data
+    elif not isinstance(buff, (bytes, bytearray)):
+        raise TypeError("Buffer must be a bytes-based object.")
+    else:
+        data = buff
+
+    data_length = len(data)
+    mod = data_length % 16
+
+    ret = ''
+    # Format _most_ of the buffer.
+    for i in range(0, len(data)):
+        if i != 0 and i % 16 == 0:
+            ret += '\t'
+            # 16 bytes at a time
+            for j in range(i - 16, i):
+                ret += ('.' if data[j] < 0x20 or data[j] > 0x7F else chr(data[j]))
+            ret += '\n'
+
+        ret += ('00' + hex(data[i])[2:])[-2:] + ' '
+
+    # If the buffer length isn't a multiple of 16, add padding.
+    if mod != 0:
+        ret = ret.ljust(len(ret) + ((16 - mod) * 3))
+        j = (data_length - mod)
+    else:
+        j = data_length - 16
+
+    ret += '\t'
+
+    # Finish the line
+    for j in range(j, data_length):
+        ret += ('.' if data[j] < 0x20 or data[j] > 0x7F else chr(data[j]))
+    return ret + '\n'
+
+
 class DataBuffer:
     def __init__(self):
         self.data = b''

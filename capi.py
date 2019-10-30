@@ -297,7 +297,7 @@ class CapiClient(Thread):
                     try:
                         self._handlers.get(command)(request, payload, status)
                     except Exception as ex:
-                        self.parent.print("ERROR! Something happened while processing received command '%s'." % command)
+                        self.parent.print("ERROR! Something happened while processing CAPI command '%s'." % command)
                         self.parent.print("ERROR!   Status: %s" % status)
                         self.parent.print("ERROR!   Payload: %s" % payload)
                         self.parent.print("ERROR!   Request: %s" % request)

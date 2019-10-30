@@ -187,7 +187,15 @@ class ThinBncsClient(Thread):
                 break
 
             if pid in self._handlers.keys():
-                self._handlers.get(pid)(pid, pak)
+                try:
+                    self._handlers.get(pid)(pid, pak)
+                except Exception as ex:
+                    self.parent.print("ERROR! Something happened while processing BNCS packet 0x%02x." % pid)
+                    self.parent.print("ERROR! Packet data dump:\n%s" % buffer.format_buffer(pak))
+                    self.parent.print("ERROR! Exception: %s" % ex)
+
+                    if self.parent.server.debug:
+                        raise
 
         self.disconnect("BNCS thread exited")
 
