@@ -333,7 +333,7 @@ class ThinBncsClient(Thread):
         self.parent.capi.send_command("Botapichat.ConnectRequest")
 
     def _handle_chatcommand(self, pid, pak):
-        text = pak.get_string()
+        text = pak.get_string(errors='ignore')
         if text.startswith("/"):
             parts = shlex.split(text[1:])
             cmd = parts[0].lower()
