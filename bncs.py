@@ -5,7 +5,6 @@ from threading import Thread
 from datetime import datetime
 import random
 import json
-import shlex
 
 
 protocols = [
@@ -335,7 +334,7 @@ class ThinBncsClient(Thread):
     def _handle_chatcommand(self, pid, pak):
         text = pak.get_string(errors='ignore')
         if text.startswith("/"):
-            parts = shlex.split(text[1:])
+            parts = text[1:].split(' ', maxsplit=1)
             cmd = parts[0].lower()
 
             # BNCS commands
@@ -345,38 +344,43 @@ class ThinBncsClient(Thread):
                 if len(parts) == 1:
                     self.send_error(ERROR_NOTLOGGEDON)
                 else:
-                    if len(parts) == 2:
+                    arg = parts[1].split(' ', maxsplit=1)
+                    if len(arg) == 1:
                         self.send_error("What do you want to say?")
                     else:
-                        self.parent.capi.send_chat(' '.join(parts[2:]), "whisper", parts[1])
+                        self.parent.capi.send_chat(arg[1], "whisper", arg[0].replace('?', ' '))
             elif cmd in ["me", "emote"]:
-                self.parent.capi.send_chat(' '.join(parts[1:]) if len(parts) > 1 else '', "emote")
+                self.parent.capi.send_chat(parts[1] if len(parts) > 1 else '', "emote")
             elif cmd in ["ban", "kick", "unban", "designate"]:
                 if len(parts) == 1:
                     self.send_error(ERROR_NOTLOGGEDON)
                 else:
-                    if cmd == "designate":      # Not really a reason for changing this it just seems nicer.
+                    arg = parts[1].split(' ', maxsplit=1)
+                    if cmd == "designate":
+                        # The CAPI function combines both /designate and /rejoin so renaming this seems appropriate.
                         cmd = "op"
 
                     # The chat API does not support messages in ban/kick messages.
-                    self.parent.capi.bankickunban(parts[1], cmd)
+                    self.parent.capi.bankickunban(arg[0], cmd)
             elif cmd == "capi":
                 if len(parts) > 1:
-                    if parts[1].lower() == "debug":
+                    sub = parts[1].split(' ', maxsplit=1)
+                    if sub[0].lower() == "debug":
                         last_message = self.parent.capi.last_talk
                         self.send_chat(EID_INFO, GATEWAY_USER, "Last CAPI message received: %s (%s seconds ago)" %
                                        (last_message, int((datetime.now() - last_message).total_seconds())))
                         self.send_chat(EID_INFO, GATEWAY_USER, "CAPI connected: %s" % self.parent.capi.connected())
                         self.send_chat(EID_INFO, GATEWAY_USER, "Connection monitor active: %s" %
                                        self.parent.server.monitor.is_alive())
-                    elif parts[1].lower() == "send":
-                        if len(parts) == 2:
+                    elif sub[0].lower() == "send":
+                        if len(sub) == 1:
                             self.send_error("You must specify a message to send.")
                         else:
-                            payload_start = text.index(parts[2]) + len(parts[2])
-                            payload_start = text.index(' ', payload_start) + 1
-                            payload = json.loads(text[payload_start:]) if len(parts) > 3 else None
-                            self.parent.capi.send_command(parts[2], payload)
+                            arg = sub[1].split(' ', maxsplit=1)
+                            try:
+                                self.parent.capi.send_command(arg[0], json.loads(arg[1]) if len(arg) > 1 else None)
+                            except json.JSONDecodeError as ex:
+                                self.send_error("Invalid JSON payload: %s" % ex)
                 else:
                     self.send_chat(EID_INFO, GATEWAY_USER, "Available sub-commands: debug, send")
             else:
