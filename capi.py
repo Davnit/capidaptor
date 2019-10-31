@@ -209,22 +209,24 @@ class CapiClient(Thread):
                 user = self.get_user(target)
                 if user is None:
                     self.parent.error(bncs.ERROR_NOTLOGGEDON)
+                    return False
                 else:
                     payload["user_id"] = user.id
 
-            self.send_command(send_message_types.get(mtype), payload)
+            return self.send_command(send_message_types.get(mtype), payload)
 
     def bankickunban(self, target, action="ban"):
         user = self.get_user(target)
         if action.lower() != "unban" and user is None:
             self.parent.error(bncs.ERROR_NOTLOGGEDON)
+            return False
         else:
             action = bku_actions.get(action.lower())
             if action is None:
                 raise ValueError("Invalid ban/kick/unban action - must be %s" % ', '.join(bku_actions.keys()))
 
             payload = {"toon_name": target} if user is None else {"user_id": user.id}
-            self.send_command(action, payload)
+            return self.send_command(action, payload)
 
     def run(self):
         while self.connected():
